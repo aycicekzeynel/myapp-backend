@@ -20,10 +20,10 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Lütfen email adresinizi girin'],
       unique: true,
       lowercase: true,
-      match: [
-        /^\\w+([\\.-]?\\w+)*@\\w+([\\.-]?\\w+)*(\\.\\w{2,3})+$/,
-        'Lütfen geçerli bir email adresi girin',
-      ],
+      // match: [
+      //   /^\\w+([\\.-]?\\w+)*@\\w+([\\.-]?\\w+)*(\\.\\w{2,3})+$/,
+      //   'Lütfen geçerli bir email adresi girin',
+      // ],
       index: true,
       sparse: true, // Null değerleri unique check'ten muaf tut
     },
