@@ -1,0 +1,60 @@
+const express = require('express');
+const router = express.Router();
+const authController = require('../controllers/authController');
+
+/**
+ * @route   GET /api/auth/test
+ * @desc    Auth route test endpoint
+ * @access  Public
+ */
+router.get('/test', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Auth route çalışıyor',
+    availableEndpoints: [
+      'POST /api/auth/register',
+      'POST /api/auth/login',
+      'POST /api/auth/google',
+      'POST /api/auth/refresh',
+      'POST /api/auth/logout',
+    ],
+    timestamp: new Date(),
+  });
+});
+
+/**
+ * @route   POST /api/auth/register
+ * @desc    Email + Şifre ile kayıt
+ * @access  Public
+ */
+router.post('/register', authController.register);
+
+/**
+ * @route   POST /api/auth/login
+ * @desc    Email + Şifre ile giriş
+ * @access  Public
+ */
+router.post('/login', authController.login);
+
+/**
+ * @route   POST /api/auth/google
+ * @desc    Google OAuth ile giriş/kayıt
+ * @access  Public
+ */
+router.post('/google', authController.googleAuth);
+
+/**
+ * @route   POST /api/auth/refresh
+ * @desc    Refresh token ile yeni access token al
+ * @access  Public
+ */
+router.post('/refresh', authController.refreshAccessToken);
+
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Çıkış yap (refresh token revoke)
+ * @access  Public
+ */
+router.post('/logout', authController.logout);
+
+module.exports = router;
