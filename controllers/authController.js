@@ -52,12 +52,12 @@ const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
     console.log('✅ Şifre hash edildi');
 
-    // Yeni kullanıcı oluştur
+    // Yeni kullanıcı oluştur - fullName alanını name'e map et
     console.log('👤 Yeni kullanıcı oluşturuluyor...');
     const user = await User.create({
       email: email.toLowerCase(),
       password: hashedPassword,
-      fullName,
+      name: fullName, // fullName --> name olarak kaydedilir
       username: username.toLowerCase(),
       dateOfBirth: dateOfBirth || null,
       authProvider: 'email',
@@ -100,7 +100,7 @@ const register = async (req, res) => {
         user: {
           id: user._id,
           email: user.email,
-          fullName: user.fullName,
+          fullName: user.name, // name --> fullName olarak döndürülür
           username: user.username,
           profilePhoto: user.profilePhoto
         },
@@ -185,7 +185,7 @@ const login = async (req, res) => {
         user: {
           id: user._id,
           email: user.email,
-          fullName: user.fullName,
+          fullName: user.name, // name --> fullName olarak döndürülür
           username: user.username,
           profilePhoto: user.profilePhoto,
           isPremium: user.isPremium
@@ -265,7 +265,7 @@ const googleAuth = async (req, res) => {
         user = await User.create({
           googleId: payload.sub,
           email: payload.email.toLowerCase(),
-          fullName: payload.name,
+          name: payload.name, // name olarak kaydedilir
           username: username.toLowerCase(),
           profilePhoto: payload.picture,
           authProvider: 'google',
@@ -305,7 +305,7 @@ const googleAuth = async (req, res) => {
         user: {
           id: user._id,
           email: user.email,
-          fullName: user.fullName,
+          fullName: user.name, // name --> fullName olarak döndürülür
           username: user.username,
           profilePhoto: user.profilePhoto,
           isPremium: user.isPremium
