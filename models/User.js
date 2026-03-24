@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 /**
  * User Schema
@@ -10,14 +10,14 @@ const userSchema = new mongoose.Schema(
     // Kullanıcı adı ve profil bilgileri
     name: {
       type: String,
-      required: [true, 'Lütfen adınızı girin'],
+      required: [true, "Lütfen adınızı girin"],
       trim: true,
-      minlength: [2, 'Ad en az 2 karakter olmalıdır'],
-      maxlength: [50, 'Ad en fazla 50 karakter olabilir'],
+      minlength: [2, "Ad en az 2 karakter olmalıdır"],
+      maxlength: [50, "Ad en fazla 50 karakter olabilir"],
     },
     email: {
       type: String,
-      required: [true, 'Lütfen email adresinizi girin'],
+      required: [true, "Lütfen email adresinizi girin"],
       unique: true,
       lowercase: true,
       // match: [
@@ -29,19 +29,22 @@ const userSchema = new mongoose.Schema(
     },
     username: {
       type: String,
-      required: [true, 'Lütfen kullanıcı adı girin'],
+      required: [true, "Lütfen kullanıcı adı girin"],
       unique: true,
       lowercase: true,
       trim: true,
-      minlength: [3, 'Kullanıcı adı en az 3 karakter olmalıdır'],
-      maxlength: [30, 'Kullanıcı adı en fazla 30 karakter olabilir'],
-      match: [/^[a-z0-9_.-]+$/, 'Kullanıcı adı sadece harfler, rakamlar, nokta, alt çizgi ve tire içerebilir'],
+      minlength: [3, "Kullanıcı adı en az 3 karakter olmalıdır"],
+      maxlength: [30, "Kullanıcı adı en fazla 30 karakter olabilir"],
+      match: [
+        /^[a-z0-9_.-]+$/,
+        "Kullanıcı adı sadece harfler, rakamlar, nokta, alt çizgi ve tire içerebilir",
+      ],
       index: true,
     },
     password: {
       type: String,
-      required: [true, 'Lütfen şifre girin'],
-      minlength: [6, 'Şifre en az 6 karakter olmalıdır'],
+      required: [true, "Lütfen şifre girin"],
+      minlength: [6, "Şifre en az 6 karakter olmalıdır"],
       select: false, // Güvenlik: şifre sorgudan default olarak seçilmiyor
     },
 
@@ -51,7 +54,7 @@ const userSchema = new mongoose.Schema(
       default: null,
       index: true,
       sparse: true,
-      description: 'Telefon numarası (format: +905551234567)',
+      description: "Telefon numarası (format: +905551234567)",
     },
 
     // OAuth entegrasyonları
@@ -60,40 +63,41 @@ const userSchema = new mongoose.Schema(
       default: null,
       index: true,
       sparse: true,
-      description: 'Google User ID',
+      description: "Google User ID",
     },
 
     // Profil bilgileri
     avatar: {
       type: String,
       default: null,
-      description: 'Cloudinary URL'
+      description: "Cloudinary URL",
     },
     bio: {
       type: String,
       default: null,
       trim: true,
-      maxlength: [500, 'Bio en fazla 500 karakter olabilir'],
+      maxlength: [500, "Bio en fazla 500 karakter olabilir"],
     },
 
     // Gizlilik ayarları
     isPrivate: {
       type: Boolean,
       default: false,
-      description: 'Özel profil: takip etmek için onay gerekir',
+      description: "Özel profil: takip etmek için onay gerekir",
     },
     locationVisibility: {
       type: String,
-      enum: ['public', 'friends', 'private'],
-      default: 'friends',
-      description: 'Konum görünürlüğü: public (herkese), friends (arkadaşlara), private (gizli)',
+      enum: ["public", "friends", "private"],
+      default: "friends",
+      description:
+        "Konum görünürlüğü: public (herkese), friends (arkadaşlara), private (gizli)",
     },
 
     // Sistem bilgileri
     role: {
       type: String,
-      enum: ['user', 'moderator', 'admin'],
-      default: 'user',
+      enum: ["user", "moderator", "admin"],
+      default: "user",
     },
     isEmailVerified: {
       type: Boolean,
@@ -158,16 +162,16 @@ const userSchema = new mongoose.Schema(
     timestamps: true, // createdAt ve updatedAt otomatik eklenir
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 /**
  * Middleware: Şifre hashleme
  * Şifre kaydedilmeden veya güncellendiğinde otomatik olarak hashlanır
  */
-userSchema.pre('save', async function (next) {
+userSchema.pre("save", async function (next) {
   // Eğer şifre değiştirilmemişse, middleware'yi atla
-  if (!this.isModified('password')) {
+  if (!this.isModified("password")) {
     return next();
   }
 
@@ -191,7 +195,7 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
   try {
     return await bcrypt.compare(enteredPassword, this.password);
   } catch (error) {
-    throw new Error('Şifre karşılaştırması başarısız oldu');
+    throw new Error("Şifre karşılaştırması başarısız oldu");
   }
 };
 
@@ -239,15 +243,19 @@ userSchema.statics.findByPhoneNumber = function (phoneNumber) {
 /**
  * Virtual: Kullanıcı adı@instance.com formatında handle
  */
-userSchema.virtual('handle').get(function () {
+userSchema.virtual("handle").get(function () {
   return `@${this.username}`;
 });
 
 /**
  * Virtual: Tam profil tamamlanmış mı
  */
-userSchema.virtual('isProfileComplete').get(function () {
-  return !!(this.name && this.username && (this.isEmailVerified || this.isPhoneVerified));
+userSchema.virtual("isProfileComplete").get(function () {
+  return !!(
+    this.name &&
+    this.username &&
+    (this.isEmailVerified || this.isPhoneVerified)
+  );
 });
 
 /**
@@ -262,6 +270,6 @@ userSchema.index({ isActive: 1, isDeleted: 1 });
 userSchema.index({ lastActive: -1 });
 
 // Model oluştur ve export et
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 module.exports = User;
