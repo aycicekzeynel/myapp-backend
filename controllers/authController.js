@@ -1,14 +1,32 @@
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
-const bcryptjs = require('bcryptjs'); // ⚠️ bcryptjs kullanıyoruz (bcrypt değil!)
+const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+
+// Çift bcrypt desteği için - eski kullanıcılar için bcrypt, yeni için bcryptjs
+let bcrypt = null;
+try {
+  bcrypt = require('bcrypt');
+  console.log('✅ bcrypt (native) yüklendi - eski kullanıcı desteği aktif');
+} catch (err) {
+  console.log('⚠️ bcrypt (native) yüklenemedi - sadece bcryptjs kullanılacak');
+}
 
 /**
  * Email + Şifre ile Kayıt
  */
 const register = async (req, res) => {
   try {
-    const { email, password, fullName, username, dateOfBirth } = req.body;
+    let { email, password, fullName, username, dateOfBirth } = req.body;
+    
+    // 🔧 Email temizleme - JSON parse hatası düzeltmesi
+    if (email) {
+      email = email.toString().replace(/"/g, '').trim().toLowerCase();
+    }
+    if (username) {
+      username = username.toString().replace(/"/g, '').trim().toLowerCase();
+    }
+
     console.log('📝 Register request başladı:', { email, fullName, username, dateOfBirth });
 
     // Validasyon
@@ -24,7 +42,7 @@ const register = async (req, res) => {
 
     // Email kontrolü
     console.log('🔍 Email kontrolü yapılıyor...');
-    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    const existingEmail = await User.findOne({ email });
     if (existingEmail) {
       console.log('❌ Email zaten kullanımda');
       return res.status(400).json({
@@ -35,7 +53,7 @@ const register = async (req, res) => {
 
     // Username kontrolü
     console.log('🔍 Username kontrolü yapılıyor...');
-    const existingUsername = await User.findOne({ username: username.toLowerCase() });
+    const existingUsername = await User.findOne({ username });
     if (existingUsername) {
       console.log('❌ Username zaten kullanımda');
       return res.status(400).json({
@@ -54,10 +72,10 @@ const register = async (req, res) => {
     // Yeni kullanıcı oluştur - fullName alanını name'e map et
     console.log('👤 Yeni kullanıcı oluşturuluyor...');
     const user = await User.create({
-      email: email.toLowerCase(),
+      email,
       password: hashedPassword,
       name: fullName, // fullName --> name olarak kaydedilir
-      username: username.toLowerCase(),
+      username,
       dateOfBirth: dateOfBirth || null,
       authProvider: 'email',
       isEmailVerified: false
@@ -122,11 +140,18 @@ const register = async (req, res) => {
 
 /**
  * Email + Şifre ile Giriş
+ * 🔧 Email temizleme ve çift bcrypt desteği eklendi
  */
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    console.log('🔐 Login request başladı:', { email });
+    let { email, password } = req.body;
+    
+    // 🔧 Email temizleme - JSON parse hatası düzeltmesi
+    if (email) {
+      email = email.toString().replace(/"/g, '').trim().toLowerCase();
+    }
+
+    console.log('🔐 Login request başladı:', { email, cleanedEmail: email });
 
     // Validasyon
     if (!email || !password) {
@@ -139,7 +164,7 @@ const login = async (req, res) => {
 
     console.log('🔍 Kullanıcı aranıyor...');
     // Kullanıcıyı bul - password alanını da getir (select: false olduğu için +password)
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    const user = await User.findOne({ email }).select('+password');
     
     if (!user) {
       console.log('❌ Kullanıcı bulunamadı');
@@ -153,13 +178,41 @@ const login = async (req, res) => {
     console.log('🔐 Password var mı?', !!user.password);
     console.log('🔐 Password hash (ilk 30 karakter):', user.password ? user.password.substring(0, 30) + '...' : 'YOK');
 
-    // Şifre kontrolü - bcryptjs.compare kullan
-    console.log('🔐 Şifre kontrol ediliyor (bcryptjs.compare)...');
-    const isPasswordValid = await bcryptjs.compare(password, user.password);
-    console.log('🔐 Şifre doğrulama sonucu:', isPasswordValid);
+    // 🔧 Çift bcrypt desteği - önce bcryptjs, sonra bcrypt (eski kullanıcılar için)
+    console.log('🔐 Şifre kontrol ediliyor...');
+    let isPasswordValid = false;
+
+    // Önce bcryptjs ile dene (yeni kullanıcılar)
+    try {
+      console.log('🔐 bcryptjs ile deneniyor...');
+      isPasswordValid = await bcryptjs.compare(password, user.password);
+      console.log('🔐 bcryptjs sonucu:', isPasswordValid);
+    } catch (err) {
+      console.log('⚠️ bcryptjs compare hatası:', err.message);
+    }
+
+    // Eğer bcryptjs başarısız olursa ve bcrypt mevcutsa, bcrypt ile dene (eski kullanıcılar)
+    if (!isPasswordValid && bcrypt) {
+      try {
+        console.log('🔐 bcrypt (native) ile deneniyor...');
+        isPasswordValid = await bcrypt.compare(password, user.password);
+        console.log('🔐 bcrypt (native) sonucu:', isPasswordValid);
+
+        // Eğer bcrypt ile başarılıysa, şifreyi bcryptjs ile yeniden hash'le (migration)
+        if (isPasswordValid) {
+          console.log('🔄 Eski kullanıcı tespit edildi - şifre bcryptjs ile güncelleniyor...');
+          const newHash = await bcryptjs.hash(password, 12);
+          user.password = newHash;
+          await user.save();
+          console.log('✅ Şifre bcryptjs ile güncellendi');
+        }
+      } catch (err) {
+        console.log('⚠️ bcrypt (native) compare hatası:', err.message);
+      }
+    }
     
     if (!isPasswordValid) {
-      console.log('❌ Şifre yanlış');
+      console.log('❌ Şifre yanlış (hem bcryptjs hem bcrypt denendi)');
       return res.status(401).json({
         success: false,
         message: 'Email veya şifre hatalı'
