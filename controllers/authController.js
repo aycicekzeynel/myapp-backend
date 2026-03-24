@@ -278,71 +278,68 @@ const login = async (req, res) => {
  */
 const googleAuth = async (req, res) => {
   try {
-    const { googleToken, fullName, username } = req.body;
+    const { googleToken } = req.body;
 
-    // Validasyon
     if (!googleToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Google token zorunludur'
-      });
+      return res.status(400).json({ success: false, message: 'Google token zorunludur' });
     }
 
-    // TODO: Google token doğrulama
-    // const { OAuth2Client } = require('google-auth-library');
-    // const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-    // const ticket = await client.verifyIdToken({ idToken: googleToken });
-    // const payload = ticket.getPayload();
+    // Google access token ile kullanıcı bilgilerini al
+    const googleRes = await fetch(
+      `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${googleToken}`
+    );
 
-    // Geçici - Mock Google payload
-    const payload = {
-      sub: 'google_' + Date.now(), // Google User ID
-      email: req.body.email || 'test@gmail.com',
-      name: fullName || 'Test User',
-      picture: req.body.picture || null
-    };
+    if (!googleRes.ok) {
+      return res.status(401).json({ success: false, message: 'Geçersiz Google token' });
+    }
+
+    const payload = await googleRes.json();
+    // payload: { sub, email, name, picture, email_verified }
+
+    if (!payload.email) {
+      return res.status(400).json({ success: false, message: 'Google hesabından email alınamadı' });
+    }
 
     // Kullanıcıyı bul veya oluştur
     let user = await User.findOne({ googleId: payload.sub });
 
     if (!user) {
-      // Email ile varsa birleştir
+      // Email ile daha önce kayıt olduysa hesapları birleştir
       user = await User.findOne({ email: payload.email.toLowerCase() });
 
       if (user) {
         user.googleId = payload.sub;
         user.isEmailVerified = true;
+        if (!user.profilePhoto && payload.picture) user.profilePhoto = payload.picture;
         await user.save();
       } else {
-        // Yeni kullanıcı oluştur
-        if (!username) {
-          return res.status(400).json({
-            success: false,
-            message: 'Yeni kullanıcılar için kullanıcı adı zorunludur'
-          });
-        }
+        // Email'den otomatik username üret
+        let baseUsername = payload.email
+          .split('@')[0]
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, '')
+          .substring(0, 20);
 
-        // Username kontrolü
-        const existingUsername = await User.findOne({ username: username.toLowerCase() });
-        if (existingUsername) {
-          return res.status(400).json({
-            success: false,
-            message: 'Bu kullanıcı adı zaten kullanılıyor'
-          });
+        if (baseUsername.length < 3) baseUsername = 'user' + baseUsername;
+
+        // Benzersiz username bul
+        let finalUsername = baseUsername;
+        let suffix = 1;
+        while (await User.findOne({ username: finalUsername })) {
+          finalUsername = `${baseUsername}${suffix++}`;
         }
 
         user = await User.create({
           googleId: payload.sub,
           email: payload.email.toLowerCase(),
-          name: payload.name, // name olarak kaydedilir
-          username: username.toLowerCase(),
-          profilePhoto: payload.picture,
+          name: payload.name || payload.email.split('@')[0],
+          username: finalUsername,
+          profilePhoto: payload.picture || null,
           authProvider: 'google',
           isEmailVerified: true
         });
       }
     } else {
-      // Mevcut kullanıcı - son giriş zamanını güncelle
       user.lastLoginAt = new Date();
       await user.save();
     }
