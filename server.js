@@ -12,6 +12,7 @@ const helmet = require('helmet');
 const { createServer } = require('http');
 const socketIO = require('socket.io');
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 
 // Custom middleware ve config
 const { connectDB, checkDBHealth } = require('./config/database');
@@ -100,7 +101,8 @@ app.get('/health', asyncHandler(async (req, res) => {
 // ================================================
 // API ROUTES (Placeholder)
 // ================================================
-app.use('/api/auth', authRoutes); 
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 // Test route
 app.get('/api/test', (req, res) => {
   res.status(HTTP_STATUS.OK).json({

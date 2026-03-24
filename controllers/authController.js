@@ -110,9 +110,10 @@ const register = async (req, res) => {
         user: {
           id: user._id,
           email: user.email,
-          fullName: user.name, // name --> fullName olarak döndürülür
+          fullName: user.name,
           username: user.username,
-          profilePhoto: user.profilePhoto
+          profilePhoto: user.profilePhoto,
+          onboardingCompleted: user.onboardingCompleted
         },
         accessToken,
         refreshToken
@@ -251,10 +252,11 @@ const login = async (req, res) => {
         user: {
           id: user._id,
           email: user.email,
-          fullName: user.name, // name --> fullName olarak döndürülür
+          fullName: user.name,
           username: user.username,
           profilePhoto: user.profilePhoto,
-          isPremium: user.isPremium
+          isPremium: user.isPremium,
+          onboardingCompleted: user.onboardingCompleted
         },
         accessToken,
         refreshToken
@@ -377,7 +379,8 @@ const googleAuth = async (req, res) => {
           fullName: user.name,
           username: user.username,
           profilePhoto: user.profilePhoto,
-          isPremium: user.isPremium
+          isPremium: user.isPremium,
+          onboardingCompleted: user.onboardingCompleted
         },
         accessToken,
         refreshToken

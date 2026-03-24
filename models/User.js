@@ -150,6 +150,21 @@ const userSchema = new mongoose.Schema(
       default: Date.now,
     },
 
+    // Onboarding
+    onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    preferences: {
+      city: { type: String, default: null },
+      cityIntent: { type: String, enum: ['living', 'exploring', null], default: null },
+      venueCategories: [{ type: String }],
+      vibe: { type: String, default: null },
+      locationConsent: { type: Boolean, default: null },
+      contactsConsent: { type: Boolean, default: null },
+      notifConsent: { type: Boolean, default: null },
+    },
+
     // Hesap durumu
     isActive: {
       type: Boolean,
