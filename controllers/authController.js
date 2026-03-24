@@ -8,9 +8,8 @@ const jwt = require('jsonwebtoken');
  */
 const register = async (req, res) => {
   try {
-    console.log('📝 Register request başladı:', req.body);
-    
     const { email, password, fullName, username, dateOfBirth } = req.body;
+    console.log('📝 Register request başladı:', { email, fullName, username, dateOfBirth });
 
     // Validasyon
     if (!email || !password || !fullName || !username) {
@@ -126,9 +125,8 @@ const register = async (req, res) => {
  */
 const login = async (req, res) => {
   try {
-    console.log('🔐 Login request başladı:', { email: req.body.email });
-
     const { email, password } = req.body;
+    console.log('🔐 Login request başladı:', { email });
 
     // Validasyon
     if (!email || !password) {
