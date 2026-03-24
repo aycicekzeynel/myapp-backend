@@ -49,9 +49,17 @@ app.use(requestIdMiddleware);
 app.use(helmet());
 
 // CORS Configuration
+const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [];
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // localhost her zaman izinli (Expo development)
+      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error('CORS: origin not allowed'));
+    },
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
