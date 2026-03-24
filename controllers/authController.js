@@ -64,16 +64,12 @@ const register = async (req, res) => {
 
     console.log('✅ Email ve username müsait');
 
-    // Şifre hash - bcryptjs ile 12 salt round
-    console.log('🔐 Şifre hash ediliyor (bcryptjs - 12 rounds)...');
-    const hashedPassword = await bcryptjs.hash(password, 12);
-    console.log('✅ Şifre hash edildi');
-
+    // Şifre hash - Model'in pre('save') hook'u hallediyor, burada ham şifre gönderiyoruz
     // Yeni kullanıcı oluştur - fullName alanını name'e map et
     console.log('👤 Yeni kullanıcı oluşturuluyor...');
     const user = await User.create({
       email,
-      password: hashedPassword,
+      password,
       name: fullName, // fullName --> name olarak kaydedilir
       username,
       dateOfBirth: dateOfBirth || null,
