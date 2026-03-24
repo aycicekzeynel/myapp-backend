@@ -10,7 +10,10 @@
     "test:api": "chmod +x test-endpoints.sh && ./test-endpoints.sh",
     "lint": "echo \"Linter coming soon\" && exit 0",
     "db:seed": "node utils/seed.js",
-    "db:clear": "node utils/clearDB.js"
+    "db:clear": "node utils/clearDB.js",
+    "db:list": "node scripts/listUsers.js",
+    "db:delete": "node scripts/deleteUser.js",
+    "db:reset": "node scripts/resetDatabase.js"
   },
   "keywords": [
     "nodejs",
@@ -25,7 +28,6 @@
   "author": "Zeynela Yçiçek",
   "license": "MIT",
   "dependencies": {
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^16.4.1",

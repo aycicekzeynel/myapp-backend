@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+const bcryptjs = require("bcryptjs");
 
 /**
  * User Schema
@@ -20,10 +20,6 @@ const userSchema = new mongoose.Schema(
       required: [true, "Lütfen email adresinizi girin"],
       unique: true,
       lowercase: true,
-      // match: [
-      //   /^\\w+([\\.-]?\\w+)*@\\w+([\\.-]?\\w+)*(\\.\\w{2,3})+$/,
-      //   'Lütfen geçerli bir email adresi girin',
-      // ],
       index: true,
       sparse: true, // Null değerleri unique check'ten muaf tut
     },
@@ -43,7 +39,6 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Lütfen şifre girin"],
       minlength: [6, "Şifre en az 6 karakter olmalıdır"],
       select: false, // Güvenlik: şifre sorgudan default olarak seçilmiyor
     },
@@ -65,9 +60,15 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       description: "Google User ID",
     },
+    authProvider: {
+      type: String,
+      enum: ["email", "google", "phone"],
+      default: "email",
+      description: "Kullanıcının kayıt olduğu yöntem",
+    },
 
     // Profil bilgileri
-    avatar: {
+    profilePhoto: {
       type: String,
       default: null,
       description: "Cloudinary URL",
@@ -77,6 +78,23 @@ const userSchema = new mongoose.Schema(
       default: null,
       trim: true,
       maxlength: [500, "Bio en fazla 500 karakter olabilir"],
+    },
+    dateOfBirth: {
+      type: Date,
+      default: null,
+      description: "Kullanıcının doğum tarihi",
+    },
+
+    // Premium
+    isPremium: {
+      type: Boolean,
+      default: false,
+      description: "Pro abonelik durumu",
+    },
+    premiumExpiresAt: {
+      type: Date,
+      default: null,
+      description: "Pro abonelik bitiş tarihi",
     },
 
     // Gizlilik ayarları
@@ -123,7 +141,7 @@ const userSchema = new mongoose.Schema(
     },
 
     // Son aktivite
-    lastLogin: {
+    lastLoginAt: {
       type: Date,
       default: null,
     },
@@ -168,6 +186,7 @@ const userSchema = new mongoose.Schema(
 /**
  * Middleware: Şifre hashleme
  * Şifre kaydedilmeden veya güncellendiğinde otomatik olarak hashlanır
+ * ⚠️ ÖNEMLİ: bcryptjs kullanıyoruz (bcrypt değil!)
  */
 userSchema.pre("save", async function (next) {
   // Eğer şifre değiştirilmemişse, middleware'yi atla
@@ -176,9 +195,9 @@ userSchema.pre("save", async function (next) {
   }
 
   try {
-    // Şifre 10 salt round ile hashlanır
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    // Şifre 12 salt round ile hashlanır (güvenlik için 12 öneriliyor)
+    const salt = await bcryptjs.genSalt(12);
+    this.password = await bcryptjs.hash(this.password, salt);
     next();
   } catch (error) {
     next(error);
@@ -193,7 +212,7 @@ userSchema.pre("save", async function (next) {
  */
 userSchema.methods.comparePassword = async function (enteredPassword) {
   try {
-    return await bcrypt.compare(enteredPassword, this.password);
+    return await bcryptjs.compare(enteredPassword, this.password);
   } catch (error) {
     throw new Error("Şifre karşılaştırması başarısız oldu");
   }

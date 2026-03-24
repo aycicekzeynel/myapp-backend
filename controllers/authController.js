@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
-const bcrypt = require('bcryptjs');
+const bcryptjs = require('bcryptjs'); // ⚠️ bcryptjs kullanıyoruz (bcrypt değil!)
 const jwt = require('jsonwebtoken');
 
 /**
@@ -46,9 +46,9 @@ const register = async (req, res) => {
 
     console.log('✅ Email ve username müsait');
 
-    // Şifre hash
-    console.log('🔐 Şifre hash ediliyor...');
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Şifre hash - bcryptjs ile 12 salt round
+    console.log('🔐 Şifre hash ediliyor (bcryptjs - 12 rounds)...');
+    const hashedPassword = await bcryptjs.hash(password, 12);
     console.log('✅ Şifre hash edildi');
 
     // Yeni kullanıcı oluştur - fullName alanını name'e map et
@@ -151,9 +151,13 @@ const login = async (req, res) => {
 
     console.log('✅ Kullanıcı bulundu:', user._id);
     console.log('🔐 Password var mı?', !!user.password);
+    console.log('🔐 Password hash (ilk 30 karakter):', user.password ? user.password.substring(0, 30) + '...' : 'YOK');
 
-    // Şifre kontrolü
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Şifre kontrolü - bcryptjs.compare kullan
+    console.log('🔐 Şifre kontrol ediliyor (bcryptjs.compare)...');
+    const isPasswordValid = await bcryptjs.compare(password, user.password);
+    console.log('🔐 Şifre doğrulama sonucu:', isPasswordValid);
+    
     if (!isPasswordValid) {
       console.log('❌ Şifre yanlış');
       return res.status(401).json({

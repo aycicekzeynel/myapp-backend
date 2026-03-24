@@ -1,382 +1,337 @@
-# 🚀 Quick Start Guide - MyApp Backend
+# 🚀 Quick Start Guide
 
-MyApp Backend'i hızlı bir şekilde başlatmak için bu adımları izleyin.
+## 📋 Ön Koşullar
 
-## 📋 Ön Gereksinimler
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+- MongoDB Atlas hesabı
+- Git
 
-- **Node.js** >= 16.0.0
-- **npm** >= 8.0.0
-- **MongoDB Atlas** account (ücretsiz tier yeterli)
-- **Redis** (isteğe bağlı, rate limiting için)
-- **SMS Provider** (Twilio, NetGSM, vb.)
+---
 
-## ⚡ 5 Dakikalık Kurulum
+## ⚡ Hızlı Başlangıç
 
-### 1. Repo Klonla & Dependencies Yükle
+### 1. Repoyu Klonla
 
 ```bash
-cd /Users/zeynelaycicek/projects/myapp-backend
+git clone <repo-url>
+cd myapp-backend
+```
 
-# Dependencies yükle
+### 2. Bağımlılıkları Yükle
+
+```bash
 npm install
 ```
 
-### 2. Environment Variables Ayarla
+**NOT:** `bcrypt` paketini kaldırdık, sadece `bcryptjs` kullanıyoruz.
+
+### 3. Environment Dosyasını Oluştur
 
 ```bash
-# .env.example'ı .env'ye kopyala
 cp .env.example .env
-
-# .env dosyasını edit et
-nano .env
 ```
 
-**En az gerekli ayarlar:**
+`.env` dosyasını düzenle:
+
 ```env
+# Server
 NODE_ENV=development
 PORT=5000
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/myapp
-JWT_SECRET=your_secret_key_min_32_chars
-JWT_REFRESH_SECRET=your_refresh_secret_key_min_32_chars
-SMS_PROVIDER=twilio
-TWILIO_ACCOUNT_SID=your_sid
-TWILIO_AUTH_TOKEN=your_token
-TWILIO_PHONE_NUMBER=+1234567890
+
+# MongoDB Atlas
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/myapp?retryWrites=true&w=majority
+
+# JWT Secrets (güvenli rastgele string'ler kullan!)
+JWT_SECRET=your-super-secret-jwt-key-min-32-characters
+JWT_REFRESH_SECRET=your-super-secret-refresh-key-min-32-characters
+
+# CORS
+CLIENT_URL=http://localhost:8081
+ADMIN_URL=http://localhost:3000
+WEB_URL=http://localhost:5173
+
+# Cloudinary (opsiyonel, şimdilik)
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+
+# Google OAuth (opsiyonel, şimdilik)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
 
-### 3. Server Başlat
+### 4. Sunucuyu Başlat
 
 ```bash
-# Development mode (auto-restart)
+# Development mode (nodemon ile auto-restart)
 npm run dev
 
-# Veya production mode
+# Production mode
 npm start
 ```
 
-**Başarılı başlangıç mesajı:**
+Sunucu başladı! 🎉
 ```
-✅ Server http://localhost:5000 başladı
-✅ MongoDB bağlantısı kuruldu
+✅ Express sunucusu başlatıldı
+✅ Port: 5000
+✅ MongoDB bağlandı
 ```
 
-### 4. API'yi Test Et
+---
+
+## 🧪 API Testi
+
+### Health Check
 
 ```bash
-# Registration
+curl http://localhost:5000/health
+```
+
+**Yanıt:**
+```json
+{
+  "success": true,
+  "message": "API is running",
+  "timestamp": "2026-03-24T..."
+}
+```
+
+### Kayıt Ol
+
+```bash
 curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Ahmet Yılmaz",
-    "email": "ahmet@example.com",
-    "username": "ahmet_yilmaz",
-    "password": "password123"
+    "email": "test@example.com",
+    "password": "Test123!",
+    "fullName": "Test User",
+    "username": "testuser"
   }'
-
-# Response:
-# {
-#   "success": true,
-#   "message": "Kayıt başarılı",
-#   "data": {
-#     "user": { ... },
-#     "tokens": {
-#       "accessToken": "...",
-#       "refreshToken": "...",
-#       "expiresIn": 900
-#     }
-#   }
-# }
 ```
 
-## 🔐 Authentication Test
-
-### Email + Şifre Login
+### Giriş Yap
 
 ```bash
 curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "ahmet@example.com",
-    "password": "password123"
+    "email": "test@example.com",
+    "password": "Test123!"
   }'
 ```
 
-### Protected Endpoint'e Erişim
+---
+
+## 🗄️ Database Management
+
+### Kullanıcıları Listele
 
 ```bash
-curl http://localhost:5000/api/auth/me \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+npm run db:list
 ```
 
-### Token Yenile
+### Kullanıcı Sil
 
 ```bash
-curl -X POST http://localhost:5000/api/auth/refresh-token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "refreshToken": "YOUR_REFRESH_TOKEN"
-  }'
+npm run db:delete test@example.com
 ```
 
-## 📱 OTP Testing (Development Mode)
-
-Development mode'da, OTP kodu API yanıtında döner:
+### Veritabanını Sıfırla
 
 ```bash
-# OTP Gönder
-curl -X POST http://localhost:5000/api/auth/phone/send-otp \
+npm run db:reset -- --confirm
+```
+
+**Daha fazla bilgi:** `scripts/README.md`
+
+---
+
+## 🔐 Bcrypt Uyumsuzluğu Sorunu
+
+Eğer login çalışmıyorsa ve "password mismatch" alıyorsan:
+
+**Sebep:** Eski kullanıcı `bcrypt` ile, yeni kod `bcryptjs` ile çalışıyor.
+
+**Çözüm:**
+
+```bash
+# 1. Eski kullanıcıyı sil
+npm run db:delete old@user.com
+
+# 2. Yeni kullanıcı oluştur (bcryptjs ile hash'lenecek)
+curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "phoneNumber": "+905551234567",
-    "type": "signup"
-  }'
-
-# Response:
-# {
-#   "success": true,
-#   "message": "OTP gönderildi",
-#   "data": {
-#     "phoneNumber": "+905551234567",
-#     "type": "signup",
-#     "expiresIn": 300,
-#     "code": "123456"  <- Dev mode'da döner
-#   }
-# }
-
-# OTP Doğrula
-curl -X POST http://localhost:5000/api/auth/phone/verify-otp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "phoneNumber": "+905551234567",
-    "code": "123456",
-    "type": "signup",
-    "name": "Ahmet Yılmaz",
-    "username": "ahmet_yilmaz"
+    "email": "old@user.com",
+    "password": "NewPassword123!",
+    "fullName": "User Name",
+    "username": "username"
   }'
 ```
+
+**Detaylı açıklama:** `BCRYPT_FIX.md`
+
+---
 
 ## 📁 Proje Yapısı
 
 ```
 myapp-backend/
+├── config/
+│   └── database.js          # MongoDB bağlantısı
 ├── controllers/
-│   └── authController.js       # Authentication logic
-├── middleware/
-│   ├── auth.js                 # JWT & Authorization
-│   └── rateLimiter.js          # Rate limiting
+│   └── authController.js    # Auth endpoint'leri
 ├── models/
-│   ├── User.js                 # User schema
-│   └── OTP.js                  # OTP schema
+│   ├── User.js              # Kullanıcı modeli
+│   ├── Otp.js               # OTP modeli
+│   └── RefreshToken.js      # Refresh token modeli
 ├── routes/
-│   └── auth.js                 # Auth endpoints
-├── utils/
-│   ├── validators.js           # Input validation
-│   ├── errorHandler.js         # Error handling
-│   └── sms.js                  # SMS service
-├── server.js                   # Express app
-├── package.json                # Dependencies
-├── .env                        # Environment variables
-└── .env.example                # Environment template
+│   └── authRoutes.js        # Auth route'ları
+├── middleware/
+│   └── errorHandler.js      # Hata yönetimi
+├── scripts/
+│   ├── listUsers.js         # Kullanıcı listele
+│   ├── deleteUser.js        # Kullanıcı sil
+│   ├── resetDatabase.js     # DB sıfırla
+│   └── README.md            # Script dokümantasyonu
+├── server.js                # Ana sunucu dosyası
+├── .env                     # Environment variables
+├── .env.example             # Örnek env dosyası
+├── package.json             # NPM dependencies
+└── README.md                # Ana dokümantasyon
 ```
-
-## 🛠️ Geliştirme Araçları
-
-### VS Code Extensions
-- REST Client (HTTP requests test)
-- Thunder Client (Postman alternative)
-- MongoDB for VS Code
-
-### Postman Collection
-Backend klasöründe Postman collection import et:
-```
-AUTHENTICATION.md içindeki API Endpoints bölümüne bak
-```
-
-### Database Management
-```bash
-# MongoDB Compass ile bağlan
-mongodb+srv://username:password@cluster.mongodb.net/myapp
-```
-
-## 🔧 Troubleshooting
-
-### "MongoDB bağlantısı başarısız"
-```bash
-# Kontrol et:
-1. MONGODB_URI doğru mu?
-2. IP whitelist'e eklendik mi?
-3. Network connectivity var mı?
-
-# MongoDB Atlas Dashboard'da:
-- Network Access → Add IP Address
-```
-
-### "SMS gönderilemedi"
-```bash
-# Development mode'da kontrol:
-NODE_ENV=development npm run dev
-
-# Konsola bakarak OTP kodunu al
-# Production'da SMS provider credentials'ı kontrol et
-```
-
-### "Rate limit hatası"
-```bash
-# Rate limit'ten muaf kılmak (admin IP):
-ADMIN_IPS=127.0.0.1
-
-# Veya Redis'i disable et:
-# utils/rateLimiter.js'de store değerini null yap
-```
-
-### "JWT Token hatası"
-```bash
-# Secrets length yeterli mi?
-openssl rand -base64 32
-
-# .env'de update et:
-JWT_SECRET=new_secret_min_32_chars
-JWT_REFRESH_SECRET=new_refresh_secret_min_32_chars
-```
-
-## 📝 Sonraki Adımlar
-
-1. **Kullanıcı Profil Endpoints'i Yaz**
-   - GET /api/users/:id
-   - PUT /api/users/:id
-   - DELETE /api/users/:id
-
-2. **Arkadaş Sistemi Implemente Et**
-   - POST /api/friends/add
-   - POST /api/friends/remove
-   - GET /api/friends
-
-3. **Check-in Features Ekle**
-   - POST /api/checkins
-   - GET /api/checkins
-   - Konum-based filtering
-
-4. **WebSocket Real-time Features**
-   - Socket.io integration
-   - Live location tracking
-   - Real-time notifications
-
-5. **Testing**
-   - Unit tests (Jest)
-   - Integration tests
-   - API tests (Supertest)
-
-## 📚 İlgili Dokümantasyon
-
-- [AUTHENTICATION.md](./AUTHENTICATION.md) - Auth sistemi detaylı
-- [AUTH_IMPLEMENTATION_SUMMARY.md](./AUTH_IMPLEMENTATION_SUMMARY.md) - Implementasyon özeti
-- [README.md](./README.md) - Genel proje bilgileri
-
-## 💡 Tips & Tricks
-
-### Development Mode Console Logging
-```javascript
-// controllers/authController.js'de
-console.log('[AUTH] Logging:', data);
-
-// Run
-NODE_ENV=development npm run dev
-```
-
-### Database Query Logging
-```javascript
-// mongoose ayarları
-mongoose.set('debug', true);
-```
-
-### Rate Limit Debugging
-```bash
-# Redis CLI'de rate limit keys'i kontrol et
-redis-cli
-> KEYS rate-limit:*
-> GET rate-limit:127.0.0.1
-```
-
-### JWT Decode
-```bash
-# Online JWT Decoder: https://jwt.io
-# Veya Node.js'de:
-const jwt = require('jsonwebtoken');
-const decoded = jwt.decode(token);
-console.log(decoded);
-```
-
-## 🎯 Common Use Cases
-
-### Postman'da Request Gönder
-
-1. **Postman aç** → New Request
-2. **Method:** POST
-3. **URL:** `http://localhost:5000/api/auth/login`
-4. **Headers:** `Content-Type: application/json`
-5. **Body:**
-```json
-{
-  "email": "ahmet@example.com",
-  "password": "password123"
-}
-```
-6. **Send** → Yanıtı al
-
-### cURL ile Rapid Testing
-
-```bash
-#!/bin/bash
-# test.sh
-
-TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "ahmet@example.com",
-    "password": "password123"
-  }' | jq -r '.data.tokens.accessToken')
-
-echo "Token: $TOKEN"
-
-curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:5000/api/auth/me
-```
-
-### Docker ile Çalıştır
-
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-
-COPY . .
-
-EXPOSE 5000
-
-CMD ["npm", "start"]
-```
-
-```bash
-docker build -t myapp-backend .
-docker run -p 5000:5000 --env-file .env myapp-backend
-```
-
-## 📞 Support
-
-Sorun mu var?
-1. Docs'u oku (AUTHENTICATION.md)
-2. Konsolu kontrol et (error messages)
-3. GitHub issues'ı kontrol et
-4. Team'e sor
 
 ---
 
-**Happy Coding! 🎉**
+## 🌐 Deploy (Render)
 
-Sorular? → Docs/AUTHENTICATION.md
-Issues? → .env ve NODE_ENV kontrol et
-Help? → Team'e slack'da sor
+**Production URL:** https://myapp-backend-jxvm.onrender.com
+
+### Render Environment Variables
+
+Render dashboard'da şu değişkenleri ekle:
+
+```
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=<atlas-connection-string>
+JWT_SECRET=<güvenli-random-string>
+JWT_REFRESH_SECRET=<güvenli-random-string>
+CLIENT_URL=exp://192.168.1.100:8081
+ADMIN_URL=https://admin.example.com
+WEB_URL=https://example.com
+```
+
+### Deploy Komutları
+
+```bash
+# Render otomatik deploy eder (git push sonrası)
+git add .
+git commit -m "Update"
+git push origin main
+```
+
+---
+
+## 🛠️ Geliştirme Komutları
+
+```bash
+npm run dev          # Development server (nodemon)
+npm start            # Production server
+npm run test         # Test suite (coming soon)
+npm run test:api     # Test endpoints script
+npm run db:list      # Kullanıcıları listele
+npm run db:delete    # Kullanıcı sil
+npm run db:reset     # DB sıfırla
+```
+
+---
+
+## 📚 Daha Fazla Bilgi
+
+- **Backend API:** `README.md`
+- **Database Scripts:** `scripts/README.md`
+- **Bcrypt Fix:** `BCRYPT_FIX.md`
+- **Environment:** `.env.example`
+
+---
+
+## 🐛 Sorun Giderme
+
+### Port zaten kullanımda
+
+```bash
+# Port 5000'i kullanan process'i bul
+lsof -i :5000
+
+# Process'i öldür
+kill -9 <PID>
+```
+
+### MongoDB bağlanamıyor
+
+```bash
+# Connection string'i kontrol et
+node -e "require('dotenv').config(); console.log(process.env.MONGODB_URI)"
+
+# MongoDB Atlas IP whitelist kontrol et:
+# - 0.0.0.0/0 (herkese açık - development için)
+# - Render IP'leri (production için)
+```
+
+### Login çalışmıyor
+
+```bash
+# Kullanıcı hash'ini kontrol et
+npm run db:list
+
+# Eğer eski bcrypt hash'i varsa sil
+npm run db:delete problematic@email.com
+
+# Yeni kullanıcı oluştur
+curl -X POST http://localhost:5000/api/auth/register ...
+```
+
+### Dependencies hatası
+
+```bash
+# node_modules ve package-lock.json'u temizle
+rm -rf node_modules package-lock.json
+
+# Yeniden yükle
+npm install
+```
+
+---
+
+## ✅ Checklist
+
+Başlamadan önce kontrol et:
+
+- [ ] Node.js 18+ yüklü
+- [ ] MongoDB Atlas hesabı var
+- [ ] `.env` dosyası oluşturuldu
+- [ ] `MONGODB_URI` doğru
+- [ ] `JWT_SECRET` ve `JWT_REFRESH_SECRET` güçlü
+- [ ] `npm install` çalıştırıldı
+- [ ] Sunucu başladı (`npm run dev`)
+- [ ] Health check başarılı
+
+**Hepsi tamam mı?** Harika! 🎉
+
+Şimdi register ve login endpoint'lerini test edebilirsin.
+
+---
+
+## 💡 İpuçları
+
+1. **Development:** `npm run dev` kullan (auto-restart)
+2. **Database:** Sık sık `npm run db:list` ile kontrol et
+3. **Logs:** Server log'larını takip et (debug için)
+4. **Postman:** API test için Postman collection'ı kullan
+5. **Git:** Her önemli değişiklikten sonra commit yap
+
+---
+
+**Başarılar!** 🚀
