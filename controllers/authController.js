@@ -126,35 +126,48 @@ const register = async (req, res) => {
  */
 const login = async (req, res) => {
   try {
+    console.log('🔐 Login request başladı:', { email: req.body.email });
+
     const { email, password } = req.body;
 
     // Validasyon
     if (!email || !password) {
+      console.log('❌ Validasyon hatası: Email veya şifre eksik');
       return res.status(400).json({
         success: false,
         message: 'Email ve şifre zorunludur'
       });
     }
 
-    // Kullanıcıyı bul
-    const user = await User.findOne({ email: email.toLowerCase() });
+    console.log('🔍 Kullanıcı aranıyor...');
+    // Kullanıcıyı bul - password alanını da getir (select: false olduğu için +password)
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+    
     if (!user) {
+      console.log('❌ Kullanıcı bulunamadı');
       return res.status(401).json({
         success: false,
         message: 'Email veya şifre hatalı'
       });
     }
+
+    console.log('✅ Kullanıcı bulundu:', user._id);
+    console.log('🔐 Password var mı?', !!user.password);
 
     // Şifre kontrolü
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      console.log('❌ Şifre yanlış');
       return res.status(401).json({
         success: false,
         message: 'Email veya şifre hatalı'
       });
     }
 
+    console.log('✅ Şifre doğru');
+
     // Token oluştur
+    console.log('🎫 Token oluşturuluyor...');
     const accessToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
@@ -167,7 +180,10 @@ const login = async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    console.log('✅ Tokenlar oluşturuldu');
+
     // Refresh token'ı veritabanına kaydet
+    console.log('💾 Refresh token kaydediliyor...');
     await RefreshToken.create({
       userId: user._id,
       token: refreshToken,
@@ -177,6 +193,8 @@ const login = async (req, res) => {
     // Son giriş zamanını güncelle
     user.lastLoginAt = new Date();
     await user.save();
+
+    console.log('🎉 Login işlemi başarılı');
 
     res.status(200).json({
       success: true,
@@ -195,11 +213,14 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌❌❌ Login error DETAY:', error);
+    console.error('Hata mesajı:', error.message);
+    console.error('Hata stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Giriş sırasında bir hata oluştu',
-      error: error.message
+      error: error.message,
+      errorDetails: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
