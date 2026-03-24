@@ -17,24 +17,20 @@ try {
  */
 const register = async (req, res) => {
   try {
-    let { email, password, fullName, username, dateOfBirth } = req.body;
-    
-    // 🔧 Email temizleme - JSON parse hatası düzeltmesi
-    if (email) {
-      email = email.toString().replace(/"/g, '').trim().toLowerCase();
-    }
-    if (username) {
-      username = username.toString().replace(/"/g, '').trim().toLowerCase();
-    }
+    let { email, password, fullName, username, phone, dateOfBirth } = req.body;
 
-    console.log('📝 Register request başladı:', { email, fullName, username, dateOfBirth });
+    if (email) email = email.toString().replace(/"/g, '').trim().toLowerCase();
+    if (username) username = username.toString().replace(/"/g, '').trim().toLowerCase();
+    if (phone) phone = phone.toString().trim();
+
+    console.log('📝 Register request başladı:', { email, fullName, username, phone, dateOfBirth });
 
     // Validasyon
-    if (!email || !password || !fullName || !username) {
+    if (!email || !password || !fullName || !username || !phone || !dateOfBirth) {
       console.log('❌ Validasyon hatası: Eksik alanlar');
       return res.status(400).json({
         success: false,
-        message: 'Email, şifre, ad soyad ve kullanıcı adı zorunludur'
+        message: 'Email, şifre, ad soyad, kullanıcı adı, telefon ve doğum tarihi zorunludur'
       });
     }
 
@@ -70,9 +66,10 @@ const register = async (req, res) => {
     const user = await User.create({
       email,
       password,
-      name: fullName, // fullName --> name olarak kaydedilir
+      name: fullName,
       username,
-      dateOfBirth: dateOfBirth || null,
+      phoneNumber: phone || null,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       authProvider: 'email',
       isEmailVerified: false
     });
