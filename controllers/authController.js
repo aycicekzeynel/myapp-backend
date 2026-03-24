@@ -301,6 +301,7 @@ const googleAuth = async (req, res) => {
     }
 
     // Kullanıcıyı bul veya oluştur
+    let isNewUser = false;
     let user = await User.findOne({ googleId: payload.sub });
 
     if (!user) {
@@ -338,6 +339,7 @@ const googleAuth = async (req, res) => {
           authProvider: 'google',
           isEmailVerified: true
         });
+        isNewUser = true;
       }
     } else {
       user.lastLoginAt = new Date();
@@ -366,12 +368,13 @@ const googleAuth = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Google ile giriş başarılı',
+      message: isNewUser ? 'Hesabın oluşturuldu, hoş geldin!' : 'Hoş geldin!',
       data: {
+        isNewUser,
         user: {
           id: user._id,
           email: user.email,
-          fullName: user.name, // name --> fullName olarak döndürülür
+          fullName: user.name,
           username: user.username,
           profilePhoto: user.profilePhoto,
           isPremium: user.isPremium
