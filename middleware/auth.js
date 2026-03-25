@@ -116,9 +116,12 @@ const authorize = (...roles) => {
  */
 const authenticate = authenticateToken;
 
+const optionalAuth = optionalAuthenticateToken;
+
 module.exports = {
   authenticateToken,
   optionalAuthenticateToken,
   authorize,
   authenticate,
+  optionalAuth,
 };

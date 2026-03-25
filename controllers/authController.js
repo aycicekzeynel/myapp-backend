@@ -1,7 +1,9 @@
+const crypto = require('crypto');
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { sendPasswordResetEmail } = require('../utils/email');
 
 // Çift bcrypt desteği için - eski kullanıcılar için bcrypt, yeni için bcryptjs
 let bcrypt = null;
@@ -487,11 +489,97 @@ const logout = async (req, res) => {
   }
 };
 
+/**
+ * Şifre Sıfırlama E-postası Gönder
+ * POST /api/auth/forgot-password
+ */
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'E-posta adresi zorunludur' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase(), isDeleted: false });
+
+    // Güvenlik: kullanıcı bulunsun ya da bulunmasın aynı yanıtı ver
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+      user.resetToken = hashedToken;
+      user.resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 dakika
+      await user.save({ validateBeforeSave: false });
+
+      try {
+        await sendPasswordResetEmail(user.email, resetToken, user.name);
+      } catch (emailError) {
+        // E-posta gönderilemese de token'ı temizle
+        user.resetToken = null;
+        user.resetTokenExpires = null;
+        await user.save({ validateBeforeSave: false });
+        console.error('E-posta gönderme hatası:', emailError);
+        return res.status(500).json({ success: false, message: 'E-posta gönderilemedi, lütfen tekrar dene' });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Eğer bu e-posta kayıtlıysa sıfırlama bağlantısı gönderildi',
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası', error: error.message });
+  }
+};
+
+/**
+ * Şifre Sıfırla
+ * POST /api/auth/reset-password
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ success: false, message: 'Token ve yeni şifre zorunludur' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Şifre en az 6 karakter olmalıdır' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      resetToken: hashedToken,
+      resetTokenExpires: { $gt: Date.now() },
+      isDeleted: false,
+    }).select('+resetToken +resetTokenExpires');
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Geçersiz veya süresi dolmuş sıfırlama bağlantısı' });
+    }
+
+    user.password = password;
+    user.resetToken = null;
+    user.resetTokenExpires = null;
+    await user.save();
+
+    // Tüm refresh token'ları iptal et (güvenlik için)
+    await RefreshToken.deleteMany({ userId: user._id });
+
+    res.status(200).json({ success: true, message: 'Şifren başarıyla güncellendi. Giriş yapabilirsin.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası', error: error.message });
+  }
+};
+
 // EXPORT EDİLEN FONKSİYONLAR
 module.exports = {
   register,
   login,
   googleAuth,
   refreshAccessToken,
-  logout
+  logout,
+  forgotPassword,
+  resetPassword,
 };

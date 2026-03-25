@@ -13,6 +13,9 @@ const { createServer } = require('http');
 const socketIO = require('socket.io');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
+const venueRoutes = require('./routes/venues');
+const checkInRoutes = require('./routes/checkins');
+const notificationRoutes = require('./routes/notifications');
 
 // Custom middleware ve config
 const { connectDB, checkDBHealth } = require('./config/database');
@@ -103,6 +106,9 @@ app.get('/health', asyncHandler(async (req, res) => {
 // ================================================
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/venues', venueRoutes);
+app.use('/api/checkins', checkInRoutes);
+app.use('/api/notifications', notificationRoutes);
 // Test route
 app.get('/api/test', (req, res) => {
   res.status(HTTP_STATUS.OK).json({

@@ -57,4 +57,18 @@ router.post('/refresh', authController.refreshAccessToken);
  */
 router.post('/logout', authController.logout);
 
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Şifre sıfırlama e-postası gönder
+ * @access  Public
+ */
+router.post('/forgot-password', authController.forgotPassword);
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Token ile şifre sıfırla
+ * @access  Public
+ */
+router.post('/reset-password', authController.resetPassword);
+
 module.exports = router;
