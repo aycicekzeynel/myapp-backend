@@ -27,7 +27,7 @@ function calcCoins(userVenueCount, isMayor) {
  */
 const createCheckIn = async (req, res) => {
   try {
-    const { venueId, note, visibility = '3h', location } = req.body;
+    const { venueId, note, visibility = '3h', location, photos } = req.body;
     const userId = req.user.userId;
 
     if (!venueId) {
@@ -56,6 +56,7 @@ const createCheckIn = async (req, res) => {
       visibleUntil,
       userVenueCount,
       coinsEarned,
+      photos: Array.isArray(photos) ? photos.slice(0, 5) : [],
       location: location ? { type: 'Point', coordinates: [location.lng, location.lat] } : undefined,
     });
 

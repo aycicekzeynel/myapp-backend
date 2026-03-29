@@ -188,28 +188,39 @@ io.on('connection', (socket) => {
 // SERVER START
 // ================================================
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 const HOST = process.env.HOST || '0.0.0.0';
+
+// Açık bağlantıları takip et (force-close için)
+const openConnections = new Set();
+httpServer.on('connection', (socket) => {
+  openConnections.add(socket);
+  socket.on('close', () => openConnections.delete(socket));
+});
 
 const startServer = async () => {
   try {
-    // MongoDB bağlantısı
     await connectDB();
 
-    // Server başla
     httpServer.listen(PORT, HOST, () => {
-      console.log(`
-╔════════════════════════════════════════╗
-║     🚀 Server Started Successfully     ║
-╠════════════════════════════════════════╣
-║ Environment: ${process.env.NODE_ENV || 'development'.padEnd(24)} ║
-║ Host: http://${HOST}:${PORT}                 ║
-║ WebSocket: ws://${HOST}:${PORT}                ║
-╚════════════════════════════════════════╝
-      `);
+      console.log(`\n🚀 Server çalışıyor: http://${HOST}:${PORT}\n`);
     });
 
-    // Graceful shutdown
+    // Port zaten kullanılıyorsa eski process'i öldür ve tekrar dene
+    httpServer.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`⚠️  Port ${PORT} kullanımda — eski process kapatılıyor...`);
+        const { execSync } = require('child_process');
+        try {
+          execSync(`lsof -ti:${PORT} | xargs kill -9`);
+        } catch {}
+        setTimeout(() => httpServer.listen(PORT, HOST), 1000);
+      } else {
+        console.error('❌ Server hatası:', err.message);
+        process.exit(1);
+      }
+    });
+
     process.on('SIGTERM', shutdownServer);
     process.on('SIGINT', shutdownServer);
   } catch (error) {
@@ -218,24 +229,25 @@ const startServer = async () => {
   }
 };
 
-// Graceful Shutdown
+// Graceful Shutdown — tüm bağlantıları force-close eder
 const shutdownServer = async () => {
   console.log('\n🛑 Server kapatılıyor...');
 
-  try {
-    httpServer.close(() => {
-      console.log('✅ HTTP server kapatıldı');
-    });
+  // Yeni bağlantı kabul etme
+  httpServer.close(() => console.log('✅ HTTP server kapatıldı'));
 
-    // MongoDB bağlantısını kapat
-    await require('./config/database').disconnectDB();
-
-    console.log('✅ Tüm kaynaklar serbest bırakıldı');
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Kapanış hatası:', error.message);
-    process.exit(1);
+  // Açık socket bağlantılarını hemen kapat (portu serbest bırak)
+  for (const socket of openConnections) {
+    socket.destroy();
   }
+  openConnections.clear();
+
+  try {
+    await require('./config/database').disconnectDB();
+  } catch {}
+
+  console.log('✅ Tüm kaynaklar serbest bırakıldı');
+  process.exit(0);
 };
 
 // Unhandled Promise Rejections

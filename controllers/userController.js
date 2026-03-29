@@ -45,15 +45,27 @@ const getMe = async (req, res) => {
  */
 const updateMe = async (req, res) => {
   try {
-    const { fullName, username, bio } = req.body;
+    const { fullName, username, bio, phoneNumber, dateOfBirth, email, profilePhoto } = req.body;
     const updates = {};
     if (fullName) updates.name = fullName;
     if (username) updates.username = username.toLowerCase();
     if (bio !== undefined) updates.bio = bio;
+    if (phoneNumber !== undefined) updates.phoneNumber = phoneNumber;
+    if (dateOfBirth !== undefined) updates.dateOfBirth = dateOfBirth;
+    if (email) updates.email = email.toLowerCase().trim();
+    if (profilePhoto !== undefined) updates.profilePhoto = profilePhoto;
 
     if (updates.username) {
       const existing = await User.findOne({ username: updates.username, _id: { $ne: req.user.userId } });
       if (existing) return res.status(400).json({ success: false, message: 'Bu kullanıcı adı zaten alınmış' });
+    }
+    if (updates.email) {
+      const existing = await User.findOne({ email: updates.email, _id: { $ne: req.user.userId } });
+      if (existing) return res.status(400).json({ success: false, message: 'Bu email adresi zaten kullanılıyor' });
+    }
+    if (updates.phoneNumber) {
+      const existing = await User.findOne({ phoneNumber: updates.phoneNumber, _id: { $ne: req.user.userId } });
+      if (existing) return res.status(400).json({ success: false, message: 'Bu telefon numarası zaten kullanılıyor' });
     }
 
     const user = await User.findByIdAndUpdate(req.user.userId, updates, { new: true }).lean();

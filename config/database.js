@@ -1,97 +1,92 @@
 /**
  * MongoDB Database Configuration
- * Mongoose bağlantı ayarlarının merkezi yönetimi
  */
 
 const mongoose = require('mongoose');
 
-/**
- * MongoDB'ye bağlanma fonksiyonu
- * @returns {Promise<void>}
- */
-const connectDB = async () => {
-  try {
-    // MongoDB URI'sı environment variables'dan alınır
-    const mongoURI = process.env.MONGODB_URI;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_DELAY = 30000;
 
-    if (!mongoURI) {
-      throw new Error('MONGODB_URI environment variable is not defined');
+function scheduleReconnect() {
+  if (reconnectTimer) return; // zaten bekliyor
+
+  const delay = Math.min(1000 * 2 ** reconnectAttempts, MAX_RECONNECT_DELAY);
+  reconnectAttempts++;
+  console.log(`🔄 MongoDB yeniden bağlanılıyor... (${reconnectAttempts}. deneme, ${delay / 1000}s sonra)`);
+
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, mongooseOptions);
+    } catch (err) {
+      console.error('❌ Yeniden bağlantı başarısız:', err.message);
+      scheduleReconnect();
     }
+  }, delay);
+}
 
-    console.log('📡 MongoDB bağlantısı kurulmaya çalışılıyor...');
+const mongooseOptions = {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  heartbeatFrequencyMS: 10000,
+};
 
-    // Mongoose bağlantı seçenekleri
-    const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    };
+const connectDB = async () => {
+  const mongoURI = process.env.MONGODB_URI;
+  if (!mongoURI) throw new Error('MONGODB_URI environment variable is not defined');
 
-    // MongoDB'ye bağlan
-    const connection = await mongoose.connect(mongoURI, options);
+  console.log('📡 MongoDB bağlantısı kuruluyor...');
 
-    console.log(`✅ MongoDB başarıyla bağlandı`);
-    console.log(`   - Host: ${connection.connection.host}`);
-    console.log(`   - Veritabanı: ${connection.connection.name}`);
-
-    // Bağlantı event listeners
+  // Listener'ları bir kere kaydet (reconnect'te tekrar kayıt olmasın)
+  if (mongoose.connection.listenerCount('disconnected') === 0) {
     mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️  MongoDB bağlantısı kesildi');
+      console.warn('⚠️  MongoDB bağlantısı kesildi — yeniden bağlanılıyor...');
+      scheduleReconnect();
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('✅ MongoDB yeniden bağlandı');
+      reconnectAttempts = 0;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
     });
 
     mongoose.connection.on('error', (err) => {
       console.error('❌ MongoDB bağlantı hatası:', err.message);
-      // Bağlantı tekrar kurmaya çalış
-      setTimeout(() => {
-        connectDB().catch((error) => {
-          console.error('Yeniden bağlantı başarısız:', error.message);
-        });
-      }, 5000);
+      // disconnected event zaten reconnect tetikler
     });
-
-    return connection;
-  } catch (error) {
-    console.error('❌ MongoDB bağlantı başarısız:', error.message);
-    console.error('   - Lütfen MONGODB_URI environment variable\'ını kontrol edin');
-    console.error('   - MongoDB Atlas cluster\'ın erişilebilir olduğunu kontrol edin');
-    process.exit(1);
   }
+
+  const connection = await mongoose.connect(mongoURI, mongooseOptions);
+  reconnectAttempts = 0;
+
+  console.log(`✅ MongoDB bağlandı: ${connection.connection.host} / ${connection.connection.name}`);
+  return connection;
 };
 
-/**
- * MongoDB'den bağlantıyı kes
- * @returns {Promise<void>}
- */
 const disconnectDB = async () => {
-  try {
-    if (mongoose.connection.readyState === 1) {
-      await mongoose.disconnect();
-      console.log('✅ MongoDB bağlantısı kapatıldı');
-    }
-  } catch (error) {
-    console.error('❌ MongoDB bağlantı kesme hatası:', error.message);
-    process.exit(1);
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+    console.log('✅ MongoDB bağlantısı kapatıldı');
   }
 };
 
-/**
- * MongoDB sağlık kontrolü
- * @returns {Promise<boolean>}
- */
 const checkDBHealth = async () => {
   try {
+    if (mongoose.connection.readyState !== 1) return false;
     await mongoose.connection.db.admin().ping();
     return true;
-  } catch (error) {
-    console.error('Database health check failed:', error.message);
+  } catch {
     return false;
   }
 };
 
-module.exports = {
-  connectDB,
-  disconnectDB,
-  checkDBHealth,
-};
+module.exports = { connectDB, disconnectDB, checkDBHealth };

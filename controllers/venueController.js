@@ -169,4 +169,21 @@ const toggleSaveVenue = async (req, res) => {
   }
 };
 
-module.exports = { getVenues, getNearbyVenues, getVenueById, createVenue, toggleSaveVenue };
+/**
+ * GET /api/venues/saved
+ * Kullanıcının kaydettiği mekanlar
+ */
+const getSavedVenues = async (req, res) => {
+  try {
+    const saved = await SavedVenue.find({ userId: req.user.userId })
+      .populate('venueId', 'name category area city')
+      .sort({ createdAt: -1 })
+      .lean();
+    const venues = saved.map(s => s.venueId).filter(Boolean);
+    res.status(200).json({ success: true, data: { venues } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Sunucu hatası', error: error.message });
+  }
+};
+
+module.exports = { getVenues, getNearbyVenues, getVenueById, createVenue, toggleSaveVenue, getSavedVenues };

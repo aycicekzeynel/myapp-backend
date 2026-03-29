@@ -573,6 +573,37 @@ const resetPassword = async (req, res) => {
   }
 };
 
+/**
+ * Şifre Değiştir (giriş yapılıyken)
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Mevcut ve yeni şifre gerekli' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Şifre en az 6 karakter olmalı' });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı' });
+
+    const match = await bcryptjs.compare(currentPassword, user.password);
+    if (!match) {
+      return res.status(401).json({ success: false, message: 'Mevcut şifre yanlış' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Şifren başarıyla güncellendi.' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası', error: error.message });
+  }
+};
+
 // EXPORT EDİLEN FONKSİYONLAR
 module.exports = {
   register,
@@ -582,4 +613,5 @@ module.exports = {
   logout,
   forgotPassword,
   resetPassword,
+  changePassword,
 };
